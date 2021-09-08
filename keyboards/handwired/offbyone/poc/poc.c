@@ -80,6 +80,8 @@ void keyboard_pre_init_kb(void)
 void matrix_init_custom(void)
 {
     // COL0/COL1 are inputs with pullup
+    DDRB &= ~(_BV(PIN1) | _BV(PIN2) | _BV(PIN3));
+    PORTB |= _BV(PIN1) | _BV(PIN2) | _BV(PIN3);
     DDRD &= ~(_BV(PIN2) | _BV(PIN3));
     PORTD |= _BV(PIN2) | _BV(PIN3);
 
@@ -100,11 +102,12 @@ static bool read_row(matrix_row_t * row)
 {
     bool col0 = !(PIND & _BV(PIN2));
     bool col1 = !(PIND & _BV(PIN3));
+    int col456 = ((~PINB) & (_BV(PIN1) | _BV(PIN2) | _BV(PIN3))) >> 1;
     uint8_t mcp = mcp23018_read(MCP23018_GPIOB);
     bool col2 = mcp & 0b01000000;
     bool col3 = mcp & 0b10000000;
 
-    matrix_row_t new_row = col0 | (col1 << 1) | (col2 << 2) | (col3 << 3);
+    matrix_row_t new_row = col0 | (col1 << 1) | (col2 << 2) | (col3 << 3) | (col456 << 4);
     bool changed = new_row != *row;
     *row = new_row;
     return changed;
