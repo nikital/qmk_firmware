@@ -26,11 +26,36 @@ static void led_init(void)
     PORTB |= _BV(PIN7); // On by default
 }
 
+static void mcp23018_reset(void)
+{
+    // Assume device is in IOCON.BANK=0
+
+    // Make sure writes increment pointer
+    uint8_t enable_seqop[1] = {0};
+    i2c_writeReg(MCP23018_ADDR, MCP23018_IOCON, enable_seqop, sizeof(enable_seqop), MCP23018_TIMEOUT);
+
+    // First thing, flip direction to input
+    uint8_t init1[MCP23018_IOCON - MCP23018_IODIRA] = {0xff, 0xff, 0};
+    i2c_writeReg(MCP23018_ADDR, MCP23018_IODIRA, init1, sizeof(init1), MCP23018_TIMEOUT);
+
+    // Skip IOCON
+
+    // Zero the rest
+    uint8_t init2[MCP23018_OLATB + 1 - MCP23018_GPPUA] = {0};
+    i2c_writeReg(MCP23018_ADDR, MCP23018_GPPUA, init2, sizeof(init2), MCP23018_TIMEOUT);
+}
+
+static void mcp23018_write(uint8_t reg, uint8_t value)
+{
+    i2c_writeReg(MCP23018_ADDR, reg, &value, 1, MCP23018_TIMEOUT);
+}
+
 void keyboard_pre_init_kb(void)
 {
     led_init();
 
     i2c_init();
+    mcp23018_reset();
 }
 
 void matrix_init_custom(void)
@@ -59,6 +84,9 @@ void matrix_init_custom(void)
     static const uint8_t ROWE = (_BV(PIN6));
     DDRE |= ROWE;
     PORTE |= ROWE;
+
+    // led is output
+    mcp23018_write(MCP23018_IODIRB, (uint8_t)~_BV(PIN7));
 }
 
 static bool read_row(matrix_row_t * row)
