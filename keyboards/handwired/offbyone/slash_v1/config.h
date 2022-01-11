@@ -14,7 +14,7 @@
 
 /* key matrix size */
 #define MATRIX_ROWS 3
-#define MATRIX_COLS 19
+#define MATRIX_COLS 31
 
 /*
  * Keyboard Matrix Assignments

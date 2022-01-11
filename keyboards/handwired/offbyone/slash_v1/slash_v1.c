@@ -50,6 +50,13 @@ static void mcp23018_write(uint8_t reg, uint8_t value)
     i2c_writeReg(MCP23018_ADDR, reg, &value, 1, MCP23018_TIMEOUT);
 }
 
+static uint8_t mcp23018_read(uint8_t reg)
+{
+    uint8_t value = 0;
+    i2c_readReg(MCP23018_ADDR, reg, &value, 1, MCP23018_TIMEOUT);
+    return value;
+}
+
 void keyboard_pre_init_kb(void)
 {
     led_init();
@@ -85,8 +92,21 @@ void matrix_init_custom(void)
     DDRE |= ROWE;
     PORTE |= ROWE;
 
-    // led is output
-    mcp23018_write(MCP23018_IODIRB, (uint8_t)~_BV(PIN7));
+    // rows and led are output, pulled high (led pulled low)
+    static const uint8_t ROWB2 = (_BV(PIN0)|_BV(PIN1)|_BV(PIN2));
+    // cols are input, with pullup
+    static const uint8_t COLA2 = (_BV(PIN0)|_BV(PIN1)|_BV(PIN2)|_BV(PIN3)|_BV(PIN4)|_BV(PIN5)|_BV(PIN6)|_BV(PIN7));
+    static const uint8_t COLB2 = (_BV(PIN3)|_BV(PIN4)|_BV(PIN5)|_BV(PIN6));
+
+    // Pullup on columns
+    mcp23018_write(MCP23018_GPPUA, COLA2);
+    mcp23018_write(MCP23018_GPPUB, COLB2);
+    // Disconnect rows
+    mcp23018_write(MCP23018_OLATB, ROWB2);
+    // Only cols are inputs
+    mcp23018_write(MCP23018_IODIRA, COLA2);
+    mcp23018_write(MCP23018_IODIRB, COLB2);
+
 }
 
 static bool read_row(matrix_row_t * row)
@@ -96,11 +116,14 @@ static bool read_row(matrix_row_t * row)
     uint8_t D = PIND;
     uint8_t F = PINF;
 
+    uint8_t A_ = mcp23018_read(MCP23018_GPIOA);
+    uint8_t B_ = mcp23018_read(MCP23018_GPIOB);
+
 #ifdef _COL
 #error "_COL is already defined"
 #endif
 #define _COL(col, reg, offset) (((matrix_row_t)!(((reg) >> (offset)) & 1)) << col)
-    matrix_row_t new_row =
+    matrix_row_t right_row =
         _COL( 0, D, 2) |
         _COL( 1, D, 3) |
         _COL( 2, D, 5) |
@@ -121,8 +144,24 @@ static bool read_row(matrix_row_t * row)
         _COL(17, B, 2) |
         _COL(18, B, 3) |
         0;
+
+    matrix_row_t left_row =
+        _COL( 0, B_, 3) |
+        _COL( 1, B_, 4) |
+        _COL( 2, B_, 5) |
+        _COL( 3, B_, 6) |
+        _COL( 4, A_, 7) |
+        _COL( 5, A_, 0) |
+        _COL( 6, A_, 6) |
+        _COL( 7, A_, 5) |
+        _COL( 8, A_, 4) |
+        _COL( 9, A_, 3) |
+        _COL(10, A_, 2) |
+        _COL(11, A_, 1) |
+        0;
 #undef _COL
 
+    matrix_row_t new_row = right_row | (left_row << 19);
     bool changed = new_row != *row;
     *row = new_row;
     return changed;
@@ -136,18 +175,21 @@ bool matrix_scan_custom(matrix_row_t matrix[])
 
     // Scan ROW 0
     PORTE &= ~_BV(PIN6);
+    mcp23018_write(MCP23018_OLATB, _BV(PIN1)|_BV(PIN2));
     _delay_ms(SCAN_DELAY);
     changed |= read_row(&matrix[0]);
     PORTE |= _BV(PIN6);
 
     // Scan ROW 1
     PORTC &= ~_BV(PIN7);
+    mcp23018_write(MCP23018_OLATB, _BV(PIN0)|_BV(PIN2));
     _delay_ms(SCAN_DELAY);
     changed |= read_row(&matrix[1]);
     PORTC |= _BV(PIN7);
 
     // Scan ROW 2
     PORTB &= ~_BV(PIN0);
+    mcp23018_write(MCP23018_OLATB, _BV(PIN0)|_BV(PIN1));
     _delay_ms(SCAN_DELAY);
     changed |= read_row(&matrix[2]);
     PORTB |= _BV(PIN0);
