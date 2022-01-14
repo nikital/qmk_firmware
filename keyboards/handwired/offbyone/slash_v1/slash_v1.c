@@ -82,15 +82,16 @@ void matrix_init_custom(void)
     PORTF |= COLF;
 
     // rows are outputs pulled high
+    // [Temp] But now I don't have diodes on all buttons, so they are inputs without pullup
     static const uint8_t ROWB = (_BV(PIN0));
-    DDRB |= ROWB;
-    PORTB |= ROWB;
+    DDRB &= ~ROWB;
+    PORTB &= ~ROWB;
     static const uint8_t ROWC = (_BV(PIN7));
-    DDRC |= ROWC;
-    PORTC |= ROWC;
+    DDRC &= ~ROWC;
+    PORTC &= ~ROWC;
     static const uint8_t ROWE = (_BV(PIN6));
-    DDRE |= ROWE;
-    PORTE |= ROWE;
+    DDRE &= ~ROWE;
+    PORTE &= ~ROWE;
 
     // rows and led are output, pulled high (led pulled low)
     static const uint8_t ROWB2 = (_BV(PIN0)|_BV(PIN1)|_BV(PIN2));
@@ -174,25 +175,28 @@ bool matrix_scan_custom(matrix_row_t matrix[])
     static const int SCAN_DELAY = 1;
 
     // Scan ROW 0
-    PORTE &= ~_BV(PIN6);
+    DDRE |= _BV(PIN6);
     mcp23018_write(MCP23018_OLATB, _BV(PIN1)|_BV(PIN2));
     _delay_ms(SCAN_DELAY);
     changed |= read_row(&matrix[0]);
-    PORTE |= _BV(PIN6);
+    DDRE &= ~_BV(PIN6);
+    _delay_ms(1); // Be absolutely sure row becomes high impedance
 
     // Scan ROW 1
-    PORTC &= ~_BV(PIN7);
+    DDRC |= _BV(PIN7);
     mcp23018_write(MCP23018_OLATB, _BV(PIN0)|_BV(PIN2));
     _delay_ms(SCAN_DELAY);
     changed |= read_row(&matrix[1]);
-    PORTC |= _BV(PIN7);
+    DDRC &= ~_BV(PIN7);
+    _delay_ms(1); // Be absolutely sure row becomes high impedance
 
     // Scan ROW 2
-    PORTB &= ~_BV(PIN0);
+    DDRB |= _BV(PIN0);
     mcp23018_write(MCP23018_OLATB, _BV(PIN0)|_BV(PIN1));
     _delay_ms(SCAN_DELAY);
     changed |= read_row(&matrix[2]);
-    PORTB |= _BV(PIN0);
+    DDRB &= ~_BV(PIN0);
+    _delay_ms(1); // Be absolutely sure row becomes high impedance
 
     return changed;
 }
