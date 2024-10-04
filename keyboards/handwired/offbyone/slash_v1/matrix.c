@@ -1,10 +1,10 @@
 // Copyright 2022 Nikita Leshenko (@nikital)
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "slash_v1.h"
 #include <stdint.h>
 
 #include "i2c_master.h"
+#include "quantum.h"
 
 #define MCP23018_ADDR (0x20 << 1)
 #define MCP23018_TIMEOUT I2C_TIMEOUT_INFINITE
@@ -32,28 +32,28 @@ static void mcp23018_reset(void)
 
     // Make sure writes increment pointer
     uint8_t enable_seqop[1] = {0};
-    i2c_writeReg(MCP23018_ADDR, MCP23018_IOCON, enable_seqop, sizeof(enable_seqop), MCP23018_TIMEOUT);
+    i2c_write_register(MCP23018_ADDR, MCP23018_IOCON, enable_seqop, sizeof(enable_seqop), MCP23018_TIMEOUT);
 
     // First thing, flip direction to input
     uint8_t init1[MCP23018_IOCON - MCP23018_IODIRA] = {0xff, 0xff, 0};
-    i2c_writeReg(MCP23018_ADDR, MCP23018_IODIRA, init1, sizeof(init1), MCP23018_TIMEOUT);
+    i2c_write_register(MCP23018_ADDR, MCP23018_IODIRA, init1, sizeof(init1), MCP23018_TIMEOUT);
 
     // Skip IOCON
 
     // Zero the rest
     uint8_t init2[MCP23018_OLATB + 1 - MCP23018_GPPUA] = {0};
-    i2c_writeReg(MCP23018_ADDR, MCP23018_GPPUA, init2, sizeof(init2), MCP23018_TIMEOUT);
+    i2c_write_register(MCP23018_ADDR, MCP23018_GPPUA, init2, sizeof(init2), MCP23018_TIMEOUT);
 }
 
 static void mcp23018_write(uint8_t reg, uint8_t value)
 {
-    i2c_writeReg(MCP23018_ADDR, reg, &value, 1, MCP23018_TIMEOUT);
+    i2c_write_register(MCP23018_ADDR, reg, &value, 1, MCP23018_TIMEOUT);
 }
 
 static uint8_t mcp23018_read(uint8_t reg)
 {
     uint8_t value = 0;
-    i2c_readReg(MCP23018_ADDR, reg, &value, 1, MCP23018_TIMEOUT);
+    i2c_read_register(MCP23018_ADDR, reg, &value, 1, MCP23018_TIMEOUT);
     return value;
 }
 
